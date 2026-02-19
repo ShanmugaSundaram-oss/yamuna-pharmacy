@@ -158,7 +158,7 @@ const Stock = {
       return `
               <tr>
                 <td>
-                  <div class="med-name-cell">${Utils.escHtml(m.name)}</div>
+                  <div class="med-name-cell">${Utils.escHtml(m.name)}${m.drugSchedule ? `<span class="schedule-badge schedule-${m.drugSchedule.toLowerCase()}">${m.drugSchedule}</span>` : ''}</div>
                   ${m.generic ? `<div class="med-sub-cell">${Utils.escHtml(m.generic)}</div>` : ''}
                 </td>
                 <td><span class="category-badge">${Utils.escHtml(m.category || '—')}</span></td>
@@ -279,6 +279,14 @@ const Stock = {
               <div class="form-group">
                 <label class="form-label">HSN Code</label>
                 <input type="text" id="f-hsn" class="form-control" value="${Utils.escHtml(v('hsn'))}" placeholder="e.g. 3004">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Drug Schedule</label>
+                <select id="f-schedule" class="form-control">
+                  <option value="" ${!v('drugSchedule') ? 'selected' : ''}>None</option>
+                  <option value="H" ${v('drugSchedule') === 'H' ? 'selected' : ''}>H (Schedule H)</option>
+                  <option value="H1" ${v('drugSchedule') === 'H1' ? 'selected' : ''}>H1 (Schedule H1)</option>
+                </select>
               </div>
             </div>
           </div>
@@ -447,6 +455,7 @@ const Stock = {
       batch: document.getElementById('f-batch')?.value?.trim() || '',
       expiry: document.getElementById('f-expiry')?.value || '',
       hsn: document.getElementById('f-hsn')?.value?.trim() || '',
+      drugSchedule: document.getElementById('f-schedule')?.value || '',
     };
     if (this.editingId) {
       await DB.updateMedicine(this.editingId, data);

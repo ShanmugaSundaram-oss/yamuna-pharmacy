@@ -108,6 +108,17 @@ const DB = {
         );
     },
 
+    getAlternatives(medicineId) {
+        const med = this.getMedicineById(medicineId);
+        if (!med || !med.generic) return [];
+        const generic = med.generic.toLowerCase();
+        return this._cacheGet(this.CACHE.medicines).filter(m =>
+            m.id !== medicineId &&
+            m.generic && m.generic.toLowerCase() === generic &&
+            m.stock > 0
+        );
+    },
+
     async addMedicine(data) {
         // Optimistic: add to cache immediately
         const id = Date.now().toString();
@@ -230,7 +241,7 @@ const DB = {
 
     getSettings() {
         return this._cacheGetObj(this.CACHE.settings, {
-            shopName: 'MediCare Pharmacy',
+            shopName: 'Yamuna Pharmacy',
             address: '123 Health Street, City',
             phone: '9876543210',
             gst: 'GSTIN123456789',
@@ -291,16 +302,21 @@ const DB = {
     seed() {
         if (this._cacheGet(this.CACHE.medicines).length > 0) return;
         const medicines = [
-            { name: 'Paracetamol 500mg', generic: 'Paracetamol', manufacturer: 'Sun Pharma', category: 'Analgesic', stock: 200, mrp: 12.50, costPrice: 8.00, unit: 'Strip', batch: 'B001', expiry: '2026-12', gst: 5 },
-            { name: 'Amoxicillin 250mg', generic: 'Amoxicillin', manufacturer: 'Cipla', category: 'Antibiotic', stock: 80, mrp: 45.00, costPrice: 30.00, unit: 'Strip', batch: 'B002', expiry: '2026-06', gst: 12 },
-            { name: 'Metformin 500mg', generic: 'Metformin', manufacturer: "Dr. Reddy's", category: 'Antidiabetic', stock: 5, mrp: 28.00, costPrice: 18.00, unit: 'Strip', batch: 'B003', expiry: '2025-09', gst: 5 },
-            { name: 'Atorvastatin 10mg', generic: 'Atorvastatin', manufacturer: 'Lupin', category: 'Cardiac', stock: 60, mrp: 95.00, costPrice: 60.00, unit: 'Strip', batch: 'B004', expiry: '2027-03', gst: 12 },
-            { name: 'Omeprazole 20mg', generic: 'Omeprazole', manufacturer: 'Mankind', category: 'Antacid', stock: 120, mrp: 35.00, costPrice: 22.00, unit: 'Strip', batch: 'B005', expiry: '2026-11', gst: 5 },
-            { name: 'Cetirizine 10mg', generic: 'Cetirizine', manufacturer: 'Zydus', category: 'Antihistamine', stock: 8, mrp: 18.00, costPrice: 11.00, unit: 'Strip', batch: 'B006', expiry: '2026-08', gst: 5 },
-            { name: 'Azithromycin 500mg', generic: 'Azithromycin', manufacturer: 'Cipla', category: 'Antibiotic', stock: 40, mrp: 85.00, costPrice: 55.00, unit: 'Strip', batch: 'B007', expiry: '2026-04', gst: 12 },
-            { name: 'Vitamin D3 60K', generic: 'Cholecalciferol', manufacturer: 'Abbott', category: 'Supplement', stock: 90, mrp: 42.00, costPrice: 28.00, unit: 'Capsule', batch: 'B008', expiry: '2027-01', gst: 0 },
-            { name: 'Ibuprofen 400mg', generic: 'Ibuprofen', manufacturer: 'Sun Pharma', category: 'Analgesic', stock: 150, mrp: 22.00, costPrice: 14.00, unit: 'Strip', batch: 'B009', expiry: '2026-10', gst: 5 },
-            { name: 'Pantoprazole 40mg', generic: 'Pantoprazole', manufacturer: 'Torrent', category: 'Antacid', stock: 3, mrp: 55.00, costPrice: 35.00, unit: 'Strip', batch: 'B010', expiry: '2026-07', gst: 5 },
+            { name: 'Paracetamol 500mg', generic: 'Paracetamol', manufacturer: 'Sun Pharma', category: 'Analgesic', drugSchedule: '', stock: 200, mrp: 12.50, costPrice: 8.00, unit: 'Strip', batch: 'B001', expiry: '2026-12', gst: 5 },
+            { name: 'Dolo 650 (Paracetamol)', generic: 'Paracetamol', manufacturer: 'Micro Labs', category: 'Analgesic', drugSchedule: '', stock: 150, mrp: 15.00, costPrice: 10.00, unit: 'Strip', batch: 'B011', expiry: '2026-11', gst: 5 },
+            { name: 'Calpol 500mg', generic: 'Paracetamol', manufacturer: 'GSK', category: 'Analgesic', drugSchedule: '', stock: 0, mrp: 14.00, costPrice: 9.00, unit: 'Strip', batch: 'B012', expiry: '2026-10', gst: 5 },
+            { name: 'Amoxicillin 250mg', generic: 'Amoxicillin', manufacturer: 'Cipla', category: 'Antibiotic', drugSchedule: 'H', stock: 80, mrp: 45.00, costPrice: 30.00, unit: 'Strip', batch: 'B002', expiry: '2026-06', gst: 12 },
+            { name: 'Mox 500 (Amoxicillin)', generic: 'Amoxicillin', manufacturer: 'Ranbaxy', category: 'Antibiotic', drugSchedule: 'H', stock: 50, mrp: 52.00, costPrice: 34.00, unit: 'Strip', batch: 'B013', expiry: '2027-02', gst: 12 },
+            { name: 'Metformin 500mg', generic: 'Metformin', manufacturer: "Dr. Reddy's", category: 'Antidiabetic', drugSchedule: 'H', stock: 5, mrp: 28.00, costPrice: 18.00, unit: 'Strip', batch: 'B003', expiry: '2025-09', gst: 5 },
+            { name: 'Atorvastatin 10mg', generic: 'Atorvastatin', manufacturer: 'Lupin', category: 'Cardiac', drugSchedule: 'H', stock: 60, mrp: 95.00, costPrice: 60.00, unit: 'Strip', batch: 'B004', expiry: '2027-03', gst: 12 },
+            { name: 'Omeprazole 20mg', generic: 'Omeprazole', manufacturer: 'Mankind', category: 'Antacid', drugSchedule: '', stock: 120, mrp: 35.00, costPrice: 22.00, unit: 'Strip', batch: 'B005', expiry: '2026-11', gst: 5 },
+            { name: 'Cetirizine 10mg', generic: 'Cetirizine', manufacturer: 'Zydus', category: 'Antihistamine', drugSchedule: '', stock: 8, mrp: 18.00, costPrice: 11.00, unit: 'Strip', batch: 'B006', expiry: '2026-08', gst: 5 },
+            { name: 'Azithromycin 500mg', generic: 'Azithromycin', manufacturer: 'Cipla', category: 'Antibiotic', drugSchedule: 'H1', stock: 40, mrp: 85.00, costPrice: 55.00, unit: 'Strip', batch: 'B007', expiry: '2026-04', gst: 12 },
+            { name: 'Vitamin D3 60K', generic: 'Cholecalciferol', manufacturer: 'Abbott', category: 'Supplement', drugSchedule: '', stock: 90, mrp: 42.00, costPrice: 28.00, unit: 'Capsule', batch: 'B008', expiry: '2027-01', gst: 0 },
+            { name: 'Ibuprofen 400mg', generic: 'Ibuprofen', manufacturer: 'Sun Pharma', category: 'Analgesic', drugSchedule: '', stock: 150, mrp: 22.00, costPrice: 14.00, unit: 'Strip', batch: 'B009', expiry: '2026-10', gst: 5 },
+            { name: 'Brufen 400mg', generic: 'Ibuprofen', manufacturer: 'Abbott', category: 'Analgesic', drugSchedule: '', stock: 0, mrp: 25.00, costPrice: 16.00, unit: 'Strip', batch: 'B014', expiry: '2026-09', gst: 5 },
+            { name: 'Pantoprazole 40mg', generic: 'Pantoprazole', manufacturer: 'Torrent', category: 'Antacid', drugSchedule: 'H', stock: 3, mrp: 55.00, costPrice: 35.00, unit: 'Strip', batch: 'B010', expiry: '2026-07', gst: 5 },
+            { name: 'Alprazolam 0.5mg', generic: 'Alprazolam', manufacturer: 'Torrent', category: 'Other', drugSchedule: 'H1', stock: 30, mrp: 32.00, costPrice: 20.00, unit: 'Strip', batch: 'B015', expiry: '2027-05', gst: 5 },
         ];
         medicines.forEach(m => {
             const id = Date.now().toString() + Math.random();

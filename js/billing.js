@@ -3,18 +3,18 @@
 // ============================================================
 
 const Billing = {
-    cart: [],
-    editingBillId: null,
+  cart: [],
+  editingBillId: null,
 
-    init() {
-        this.cart = [];
-        this.render();
-        this.bindEvents();
-    },
+  init() {
+    this.cart = [];
+    this.render();
+    this.bindEvents();
+  },
 
-    render() {
-        const settings = DB.getSettings();
-        document.getElementById('main-content').innerHTML = `
+  render() {
+    const settings = DB.getSettings();
+    document.getElementById('main-content').innerHTML = `
       <div class="page-header">
         <div>
           <h1 class="page-title">New Bill</h1>
@@ -103,18 +103,18 @@ const Billing = {
         </div>
       </div>
     `;
-        this.bindEvents();
-    },
+    this.bindEvents();
+  },
 
-    renderCart() {
-        if (this.cart.length === 0) {
-            return `<div class="empty-cart">
+  renderCart() {
+    if (this.cart.length === 0) {
+      return `<div class="empty-cart">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
         <p>No items added yet</p>
         <p style="font-size:12px;opacity:0.5">Search and add medicines above</p>
       </div>`;
-        }
-        return `
+    }
+    return `
       <div class="table-wrapper">
         <table class="data-table">
           <thead>
@@ -131,7 +131,7 @@ const Billing = {
             ${this.cart.map((item, idx) => `
               <tr>
                 <td>
-                  <div class="med-name-cell">${Utils.escHtml(item.name)}</div>
+                  <div class="med-name-cell">${Utils.escHtml(item.name)}${item.drugSchedule ? `<span class="schedule-badge schedule-${item.drugSchedule.toLowerCase()}">${item.drugSchedule}</span>` : ''}</div>
                   <div class="med-sub-cell">${Utils.escHtml(item.manufacturer || '')}</div>
                 </td>
                 <td style="text-align:center">
@@ -156,170 +156,188 @@ const Billing = {
         </table>
       </div>
     `;
-    },
+  },
 
-    renderSummary() {
-        const settings = DB.getSettings();
-        const sym = settings.currency;
-        const subtotal = this.cart.reduce((s, i) => s + i.qty * i.mrp, 0);
-        const gstAmt = this.cart.reduce((s, i) => s + (i.qty * i.mrp * (i.gst || 0) / 100), 0);
-        const discount = parseFloat(document.getElementById('discount-input')?.value || 0);
-        const grand = subtotal + gstAmt - discount;
-        setTimeout(() => {
-            const el = document.getElementById('grand-total-val');
-            if (el) el.textContent = Utils.currency(grand);
-        }, 0);
-        return `
+  renderSummary() {
+    const settings = DB.getSettings();
+    const sym = settings.currency;
+    const subtotal = this.cart.reduce((s, i) => s + i.qty * i.mrp, 0);
+    const gstAmt = this.cart.reduce((s, i) => s + (i.qty * i.mrp * (i.gst || 0) / 100), 0);
+    const discount = parseFloat(document.getElementById('discount-input')?.value || 0);
+    const grand = subtotal + gstAmt - discount;
+    setTimeout(() => {
+      const el = document.getElementById('grand-total-val');
+      if (el) el.textContent = Utils.currency(grand);
+    }, 0);
+    return `
       <div class="summary-row"><span>Subtotal</span><span>${Utils.currency(subtotal)}</span></div>
       <div class="summary-row"><span>GST</span><span>${Utils.currency(gstAmt)}</span></div>
       <div class="summary-row"><span>Discount</span><span>− ${Utils.currency(discount)}</span></div>
       <div class="summary-row total-row"><span>Grand Total</span><span>${Utils.currency(grand)}</span></div>
     `;
-    },
+  },
 
-    updateSummary() {
-        const el = document.getElementById('summary-rows');
-        if (el) el.innerHTML = this.renderSummary();
-        const cartEl = document.getElementById('cart-table-wrapper');
-        if (cartEl) cartEl.innerHTML = this.renderCart();
-    },
+  updateSummary() {
+    const el = document.getElementById('summary-rows');
+    if (el) el.innerHTML = this.renderSummary();
+    const cartEl = document.getElementById('cart-table-wrapper');
+    if (cartEl) cartEl.innerHTML = this.renderCart();
+  },
 
-    bindEvents() {
-        const searchInput = document.getElementById('med-search');
-        if (!searchInput) return;
-        const debouncedSearch = Utils.debounce((val) => this.showSearchResults(val), 200);
-        searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
-        searchInput.addEventListener('focus', (e) => { if (e.target.value) debouncedSearch(e.target.value); });
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.search-wrapper')) {
-                const dd = document.getElementById('search-results');
-                if (dd) dd.innerHTML = '';
-            }
-        });
-        const discountInput = document.getElementById('discount-input');
-        if (discountInput) discountInput.addEventListener('input', () => this.updateSummary());
-    },
-
-    showSearchResults(query) {
-        const dd = document.getElementById('search-results');
-        if (!dd) return;
-        if (!query.trim()) { dd.innerHTML = ''; return; }
-        const results = DB.searchMedicines(query).slice(0, 8);
-        if (results.length === 0) {
-            dd.innerHTML = `<div class="search-no-result">No medicines found</div>`;
-            return;
-        }
-        dd.innerHTML = results.map(m => `
-      <div class="search-item ${m.stock <= 0 ? 'out-of-stock' : ''}" onclick="Billing.addToCart('${m.id}')">
-        <div class="search-item-name">${Utils.escHtml(m.name)}</div>
-        <div class="search-item-meta">
-          <span>${Utils.escHtml(m.manufacturer || '')}</span>
-          <span class="stock-badge ${m.stock <= 0 ? 'badge-danger' : m.stock <= 10 ? 'badge-warning' : 'badge-success'}">
-            Stock: ${m.stock}
-          </span>
-          <span>${Utils.currency(m.mrp)}</span>
-        </div>
-      </div>
-    `).join('');
-    },
-
-    addToCart(medicineId) {
-        const med = DB.getMedicineById(medicineId);
-        if (!med) return;
-        if (med.stock <= 0) { Utils.toast('This medicine is out of stock!', 'error'); return; }
-        const existing = this.cart.find(i => i.medicineId === medicineId);
-        if (existing) {
-            if (existing.qty >= med.stock) { Utils.toast('Cannot add more than available stock!', 'warning'); return; }
-            existing.qty++;
-        } else {
-            this.cart.push({
-                medicineId: med.id,
-                name: med.name,
-                manufacturer: med.manufacturer,
-                mrp: med.mrp,
-                gst: med.gst || 0,
-                qty: 1,
-                stock: med.stock,
-            });
-        }
-        const searchInput = document.getElementById('med-search');
-        if (searchInput) searchInput.value = '';
+  bindEvents() {
+    const searchInput = document.getElementById('med-search');
+    if (!searchInput) return;
+    const debouncedSearch = Utils.debounce((val) => this.showSearchResults(val), 200);
+    searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
+    searchInput.addEventListener('focus', (e) => { if (e.target.value) debouncedSearch(e.target.value); });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrapper')) {
         const dd = document.getElementById('search-results');
         if (dd) dd.innerHTML = '';
-        this.updateSummary();
-    },
+      }
+    });
+    const discountInput = document.getElementById('discount-input');
+    if (discountInput) discountInput.addEventListener('input', () => this.updateSummary());
+  },
 
-    changeQty(idx, delta) {
-        const item = this.cart[idx];
-        if (!item) return;
-        const newQty = item.qty + delta;
-        if (newQty < 1) { this.removeItem(idx); return; }
-        if (newQty > item.stock) { Utils.toast('Cannot exceed available stock!', 'warning'); return; }
-        item.qty = newQty;
-        this.updateSummary();
-    },
+  showSearchResults(query) {
+    const dd = document.getElementById('search-results');
+    if (!dd) return;
+    if (!query.trim()) { dd.innerHTML = ''; return; }
+    const results = DB.searchMedicines(query).slice(0, 8);
+    if (results.length === 0) {
+      dd.innerHTML = `<div class="search-no-result">No medicines found</div>`;
+      return;
+    }
+    dd.innerHTML = results.map(m => {
+      const scheduleBadge = m.drugSchedule ? `<span class="schedule-badge schedule-${m.drugSchedule.toLowerCase()}">${m.drugSchedule}</span>` : '';
+      const isOOS = m.stock <= 0;
+      let altHtml = '';
+      if (isOOS) {
+        const alts = DB.getAlternatives(m.id);
+        if (alts.length > 0) {
+          altHtml = `<div class="alt-section">
+            <div class="alt-header"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M1 20l4.64-4.36A9 9 0 0120.49 15"/></svg> Alternatives Available (${m.generic})</div>
+            ${alts.slice(0, 3).map(a => `<div class="alt-item" onclick="event.stopPropagation();Billing.addToCart('${a.id}')">
+              <div class="alt-item-info">
+                <div class="alt-item-name">${Utils.escHtml(a.name)}${a.drugSchedule ? `<span class="schedule-badge schedule-${a.drugSchedule.toLowerCase()}">${a.drugSchedule}</span>` : ''}</div>
+                <div class="alt-item-meta">${Utils.escHtml(a.manufacturer || '')} · Stock: ${a.stock} · ${Utils.currency(a.mrp)}</div>
+              </div>
+              <button class="alt-item-add" onclick="event.stopPropagation();Billing.addToCart('${a.id}')">+ Add</button>
+            </div>`).join('')}
+          </div>`;
+        }
+      }
+      return `
+      <div class="search-item ${isOOS ? 'out-of-stock' : ''}" onclick="${isOOS ? '' : `Billing.addToCart('${m.id}')`}">
+        <div class="search-item-name">${Utils.escHtml(m.name)}${scheduleBadge}</div>
+        <div class="search-item-meta">
+          <span>${Utils.escHtml(m.manufacturer || '')}</span>
+          <span class="stock-badge ${m.stock <= 0 ? 'badge-danger' : m.stock <= 10 ? 'badge-warning' : 'badge-success'}">Stock: ${m.stock}</span>
+          <span>${Utils.currency(m.mrp)}</span>
+        </div>
+      </div>${altHtml}`;
+    }).join('');
+  },
 
-    setQty(idx, val) {
-        const item = this.cart[idx];
-        if (!item) return;
-        const qty = parseInt(val);
-        if (isNaN(qty) || qty < 1) { item.qty = 1; }
-        else if (qty > item.stock) { item.qty = item.stock; Utils.toast('Cannot exceed available stock!', 'warning'); }
-        else { item.qty = qty; }
-        this.updateSummary();
-    },
+  addToCart(medicineId) {
+    const med = DB.getMedicineById(medicineId);
+    if (!med) return;
+    if (med.stock <= 0) { Utils.toast('This medicine is out of stock!', 'error'); return; }
+    const existing = this.cart.find(i => i.medicineId === medicineId);
+    if (existing) {
+      if (existing.qty >= med.stock) { Utils.toast('Cannot add more than available stock!', 'warning'); return; }
+      existing.qty++;
+    } else {
+      this.cart.push({
+        medicineId: med.id,
+        name: med.name,
+        manufacturer: med.manufacturer,
+        mrp: med.mrp,
+        gst: med.gst || 0,
+        qty: 1,
+        stock: med.stock,
+        drugSchedule: med.drugSchedule || '',
+      });
+    }
+    const searchInput = document.getElementById('med-search');
+    if (searchInput) searchInput.value = '';
+    const dd = document.getElementById('search-results');
+    if (dd) dd.innerHTML = '';
+    this.updateSummary();
+  },
 
-    removeItem(idx) {
-        this.cart.splice(idx, 1);
-        this.updateSummary();
-    },
+  changeQty(idx, delta) {
+    const item = this.cart[idx];
+    if (!item) return;
+    const newQty = item.qty + delta;
+    if (newQty < 1) { this.removeItem(idx); return; }
+    if (newQty > item.stock) { Utils.toast('Cannot exceed available stock!', 'warning'); return; }
+    item.qty = newQty;
+    this.updateSummary();
+  },
 
-    clearCart() {
-        if (this.cart.length === 0) return;
-        if (!Utils.confirm('Clear all items from cart?')) return;
-        this.cart = [];
-        this.updateSummary();
-    },
+  setQty(idx, val) {
+    const item = this.cart[idx];
+    if (!item) return;
+    const qty = parseInt(val);
+    if (isNaN(qty) || qty < 1) { item.qty = 1; }
+    else if (qty > item.stock) { item.qty = item.stock; Utils.toast('Cannot exceed available stock!', 'warning'); }
+    else { item.qty = qty; }
+    this.updateSummary();
+  },
 
-    setPayment(mode) {
-        document.getElementById('pay-cash')?.classList.toggle('active', mode === 'Cash');
-        document.getElementById('pay-upi')?.classList.toggle('active', mode === 'UPI');
-        this._paymentMode = mode;
-    },
+  removeItem(idx) {
+    this.cart.splice(idx, 1);
+    this.updateSummary();
+  },
 
-    getPaymentMode() {
-        return this._paymentMode || 'Cash';
-    },
+  clearCart() {
+    if (this.cart.length === 0) return;
+    if (!Utils.confirm('Clear all items from cart?')) return;
+    this.cart = [];
+    this.updateSummary();
+  },
 
-    async saveBill() {
-        if (this.cart.length === 0) { Utils.toast('Add at least one medicine to the bill!', 'warning'); return; }
-        const settings = DB.getSettings();
-        const subtotal = this.cart.reduce((s, i) => s + i.qty * i.mrp, 0);
-        const gstAmount = this.cart.reduce((s, i) => s + (i.qty * i.mrp * (i.gst || 0) / 100), 0);
-        const discount = parseFloat(document.getElementById('discount-input')?.value || 0);
-        const grandTotal = subtotal + gstAmount - discount;
-        const bill = {
-            items: this.cart.map(i => ({
-                medicineId: i.medicineId,
-                name: i.name,
-                qty: i.qty,
-                mrp: i.mrp,
-                gst: i.gst,
-                total: i.qty * i.mrp,
-            })),
-            paymentMode: this.getPaymentMode(),
-            subtotal,
-            gstAmount,
-            discount,
-            grandTotal,
-            patientName: document.getElementById('patient-name')?.value || '',
-            doctorName: document.getElementById('doctor-name')?.value || '',
-        };
-        const saved = await DB.addBill(bill);
-        Utils.toast(`Bill ${saved.billNo} saved successfully!`, 'success');
-        Utils.printBill(saved, settings);
-        this.cart = [];
-        this._paymentMode = 'Cash';
-        this.render();
-    },
+  setPayment(mode) {
+    document.getElementById('pay-cash')?.classList.toggle('active', mode === 'Cash');
+    document.getElementById('pay-upi')?.classList.toggle('active', mode === 'UPI');
+    this._paymentMode = mode;
+  },
+
+  getPaymentMode() {
+    return this._paymentMode || 'Cash';
+  },
+
+  async saveBill() {
+    if (this.cart.length === 0) { Utils.toast('Add at least one medicine to the bill!', 'warning'); return; }
+    const settings = DB.getSettings();
+    const subtotal = this.cart.reduce((s, i) => s + i.qty * i.mrp, 0);
+    const gstAmount = this.cart.reduce((s, i) => s + (i.qty * i.mrp * (i.gst || 0) / 100), 0);
+    const discount = parseFloat(document.getElementById('discount-input')?.value || 0);
+    const grandTotal = subtotal + gstAmount - discount;
+    const bill = {
+      items: this.cart.map(i => ({
+        medicineId: i.medicineId,
+        name: i.name,
+        qty: i.qty,
+        mrp: i.mrp,
+        gst: i.gst,
+        total: i.qty * i.mrp,
+      })),
+      paymentMode: this.getPaymentMode(),
+      subtotal,
+      gstAmount,
+      discount,
+      grandTotal,
+      patientName: document.getElementById('patient-name')?.value || '',
+      doctorName: document.getElementById('doctor-name')?.value || '',
+    };
+    const saved = await DB.addBill(bill);
+    Utils.toast(`Bill ${saved.billNo} saved successfully!`, 'success');
+    Utils.printBill(saved, settings);
+    this.cart = [];
+    this._paymentMode = 'Cash';
+    this.render();
+  },
 };

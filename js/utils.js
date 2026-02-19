@@ -3,71 +3,71 @@
 // ============================================================
 
 const Utils = {
-    // Format currency
-    currency(amount, symbol = '₹') {
-        return `${symbol}${parseFloat(amount || 0).toFixed(2)}`;
-    },
+  // Format currency
+  currency(amount, symbol = '₹') {
+    return `${symbol}${parseFloat(amount || 0).toFixed(2)}`;
+  },
 
-    // Format date
-    formatDate(isoStr) {
-        if (!isoStr) return '—';
-        const d = new Date(isoStr);
-        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    },
+  // Format date
+  formatDate(isoStr) {
+    if (!isoStr) return '—';
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  },
 
-    formatDateTime(isoStr) {
-        if (!isoStr) return '—';
-        const d = new Date(isoStr);
-        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
-            ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    },
+  formatDateTime(isoStr) {
+    if (!isoStr) return '—';
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  },
 
-    todayISO() {
-        return new Date().toISOString().split('T')[0];
-    },
+  todayISO() {
+    return new Date().toISOString().split('T')[0];
+  },
 
-    // Toast notifications
-    toast(message, type = 'success') {
-        const existing = document.getElementById('toast-container');
-        const container = existing || (() => {
-            const c = document.createElement('div');
-            c.id = 'toast-container';
-            document.body.appendChild(c);
-            return c;
-        })();
+  // Toast notifications
+  toast(message, type = 'success') {
+    const existing = document.getElementById('toast-container');
+    const container = existing || (() => {
+      const c = document.createElement('div');
+      c.id = 'toast-container';
+      document.body.appendChild(c);
+      return c;
+    })();
 
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-        toast.innerHTML = `<span class="toast-icon">${icons[type] || '✓'}</span><span>${message}</span>`;
-        container.appendChild(toast);
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || '✓'}</span><span>${message}</span>`;
+    container.appendChild(toast);
 
-        requestAnimationFrame(() => toast.classList.add('show'));
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    },
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  },
 
-    // Modal helpers
-    showModal(id) {
-        const m = document.getElementById(id);
-        if (m) { m.classList.add('active'); document.body.style.overflow = 'hidden'; }
-    },
-    hideModal(id) {
-        const m = document.getElementById(id);
-        if (m) { m.classList.remove('active'); document.body.style.overflow = ''; }
-    },
+  // Modal helpers
+  showModal(id) {
+    const m = document.getElementById(id);
+    if (m) { m.classList.add('active'); document.body.style.overflow = 'hidden'; }
+  },
+  hideModal(id) {
+    const m = document.getElementById(id);
+    if (m) { m.classList.remove('active'); document.body.style.overflow = ''; }
+  },
 
-    // Confirm dialog
-    confirm(message) {
-        return window.confirm(message);
-    },
+  // Confirm dialog
+  confirm(message) {
+    return window.confirm(message);
+  },
 
-    // Print bill
-    printBill(bill, settings) {
-        const s = settings || DB.getSettings();
-        const itemRows = bill.items.map(i => `
+  // Print bill
+  printBill(bill, settings) {
+    const s = settings || DB.getSettings();
+    const itemRows = bill.items.map(i => `
       <tr>
         <td>${i.name}</td>
         <td style="text-align:center">${i.qty}</td>
@@ -77,8 +77,8 @@ const Utils = {
       </tr>
     `).join('');
 
-        const win = window.open('', '_blank', 'width=400,height=600');
-        win.document.write(`
+    const win = window.open('', '_blank', 'width=400,height=600');
+    win.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -103,7 +103,7 @@ const Utils = {
       </head>
       <body>
         <div class="header">
-          <h2>${s.shopName}</h2>
+          <h2>${s.shopName || 'YAMUNA PHARMACY'}</h2>
           <p>${s.address}</p>
           <p>Ph: ${s.phone} | GST: ${s.gst}</p>
           <p>Drug Lic: ${s.licenseNo}</p>
@@ -142,41 +142,41 @@ const Utils = {
       </body>
       </html>
     `);
-        win.document.close();
-    },
+    win.document.close();
+  },
 
-    // Debounce
-    debounce(fn, delay = 300) {
-        let t;
-        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
-    },
+  // Debounce
+  debounce(fn, delay = 300) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+  },
 
-    // Get date range
-    getThisMonth() {
-        const now = new Date();
-        const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        const to = now.toISOString().split('T')[0];
-        return { from, to };
-    },
+  // Get date range
+  getThisMonth() {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = now.toISOString().split('T')[0];
+    return { from, to };
+  },
 
-    getLast7Days() {
-        const to = new Date().toISOString().split('T')[0];
-        const from = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
-        return { from, to };
-    },
+  getLast7Days() {
+    const to = new Date().toISOString().split('T')[0];
+    const from = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+    return { from, to };
+  },
 
-    // Generate last N days labels
-    lastNDays(n) {
-        const days = [];
-        for (let i = n - 1; i >= 0; i--) {
-            const d = new Date(Date.now() - i * 86400000);
-            days.push(d.toISOString().split('T')[0]);
-        }
-        return days;
-    },
-
-    // Escape HTML
-    escHtml(str) {
-        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Generate last N days labels
+  lastNDays(n) {
+    const days = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      days.push(d.toISOString().split('T')[0]);
     }
+    return days;
+  },
+
+  // Escape HTML
+  escHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 };
