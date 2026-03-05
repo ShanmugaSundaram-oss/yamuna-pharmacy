@@ -44,18 +44,9 @@ const Auth = {
     document.getElementById('app-container').style.display = 'none';
     setTimeout(() => document.getElementById('login-username')?.focus(), 100);
 
-    // Toggle register button if Firebase is connected
-    const regBtn = document.getElementById('btn-register');
     const uLabel = document.getElementById('label-username');
-    if (DB.isConfigured()) {
-      if (regBtn) regBtn.style.display = 'block';
-      if (uLabel) uLabel.textContent = 'Email Address';
-      document.getElementById('login-username').type = 'email';
-    } else {
-      if (regBtn) regBtn.style.display = 'none';
-      if (uLabel) uLabel.textContent = 'Username';
-      document.getElementById('login-username').type = 'text';
-    }
+    if (uLabel) uLabel.textContent = 'Email Address';
+    document.getElementById('login-username').type = 'email';
   },
 
   async handleLogin(e) {
@@ -333,8 +324,6 @@ const App = {
 
   renderSettings() {
     const s = DB.getSettings();
-    const configStr = DB.getFirebaseConfigString();
-    const isConnected = DB.isConfigured();
     document.getElementById('main-content').innerHTML = `
       <div class="page-header">
         <div>
@@ -343,28 +332,20 @@ const App = {
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:20px;border-color:${isConnected ? 'var(--success)' : 'var(--accent)'}">
+      <div class="card" style="margin-bottom:20px;border-color:var(--success)">
         <div class="card-header">
           <h3 class="card-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
             Firebase Cloud Database
           </h3>
-          <span class="badge ${isConnected ? 'badge-success' : 'badge-warning'}">${isConnected ? '✓ Connected' : 'Not Connected'}</span>
+          <span class="badge badge-success">✓ Connected</span>
         </div>
         <div class="card-body">
-          ${!isConnected ? `<div class="sheets-setup-banner" style="background:var(--accent-dim);color:var(--accent);padding:10px;border-radius:6px;margin-bottom:12px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-4px;margin-right:6px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Paste your Firebase Configuration JSON below to enable real-time cloud sync across all your devices.</span></div>` : ''}
-          <div class="form-group" style="margin-top:${isConnected ? '0' : '12px'}">
-            <label class="form-label">Firebase Config JSON Object</label>
-            <textarea id="s-firebase-config" class="form-control" rows="5" placeholder='{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "...",\n... }'>${Utils.escHtml(configStr)}</textarea>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Copy this from your Firebase Project Settings.</div>
+          <div style="margin-bottom:12px;padding:10px 14px;background:var(--success-dim);border-radius:var(--radius);font-size:13px;color:var(--success)">✓ All data syncing to Firebase Cloud automatically. Your data is safe and accessible from any device.</div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-outline" onclick="App.syncNow()">Sync Now</button>
+            <button class="btn btn-outline" onclick="App.pushToCloud()" style="color:var(--accent);border-color:var(--accent)">Upload All Local Data to Cloud</button>
           </div>
-          <div style="display:flex;gap:10px;margin-top:12px">
-            <button class="btn btn-primary" onclick="App.saveFirebaseConfig()">Save & Connect</button>
-            ${isConnected ? `<button class="btn btn-outline" onclick="App.testFirebaseConnection()">Test Connection</button>` : ''}
-            ${isConnected ? `<button class="btn btn-outline" onclick="App.syncNow()">Sync Now</button>` : ''}
-            ${isConnected ? `<button class="btn btn-outline" onclick="App.pushToCloud()" style="color:var(--accent);border-color:var(--accent)">Upload All Local Data to Cloud</button>` : ''}
-          </div>
-          ${isConnected ? `<div style="margin-top:12px;padding:10px 14px;background:var(--success-dim);border-radius:var(--radius);font-size:13px;color:var(--success)">✓ All data syncing to Firebase automatically.</div>` : ''}
         </div>
       </div>
 
@@ -401,7 +382,7 @@ const App = {
               <div class="about-logo">💊</div>
               <h3>YAMUNA PHARMACY</h3>
               <p>Pharmacy Management System</p>
-              <p style="color:var(--text-muted);font-size:12px;margin-top:8px">Version 2.0.0 · ${isConnected ? 'Firebase Realtime sync enabled' : 'Local storage mode'}</p>
+              <p style="color:var(--text-muted);font-size:12px;margin-top:8px">Version 2.0.0 · Firebase Realtime sync enabled</p>
               <div class="about-stats">
                 <div><span>${DB.getMedicinesSync().length}</span><label>Medicines</label></div>
                 <div><span>${DB.getBillsSync().length}</span><label>Bills</label></div>
@@ -413,46 +394,7 @@ const App = {
     `;
   },
 
-  saveFirebaseConfig() {
-    const rawVal = document.getElementById('s-firebase-config')?.value?.trim();
-    if (!rawVal) {
-      localStorage.removeItem(DB.FIREBASE_KEY);
-      Utils.toast('Firebase disconnected.', 'info');
-      this.renderSettings();
-      return;
-    }
-    try {
-      // Basic validation that it's a JSON object with apiKey
-      const config = JSON.parse(rawVal);
-      if (!config.apiKey || !config.projectId) throw new Error('Missing apiKey or projectId');
 
-      localStorage.setItem(DB.FIREBASE_KEY, JSON.stringify(config));
-      Utils.toast('Firebase connected successfully! Syncing...', 'success');
-      DB.initFirebase();
-      this._syncFromFirebase();
-      this.renderSettings();
-      setTimeout(() => {
-        Utils.toast('Please log in again with Firebase.', 'info');
-        Auth.logout();
-      }, 1500);
-    } catch (e) {
-      Utils.toast('Invalid Firebase config JSON. Please copy the exact object.', 'error');
-    }
-  },
-
-  async testFirebaseConnection() {
-    Utils.toast('Testing connection...', 'info');
-    if (!DB.isConfigured() || !DB.db) {
-      Utils.toast('Not configured.', 'error');
-      return;
-    }
-    try {
-      await DB.db.collection('medicines').limit(1).get();
-      Utils.toast('✓ Connected to Firebase Firestore!', 'success');
-    } catch (e) {
-      Utils.toast('Connection failed. Check permissions and config.', 'error');
-    }
-  },
 
   async syncNow() {
     Utils.toast('Syncing from Firebase...', 'info');

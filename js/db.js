@@ -7,7 +7,15 @@
 // ============================================================
 
 const DB = {
-    FIREBASE_KEY: 'pharma_firebase_config',
+    // ── Hardcoded Firebase Config ─────────────────────────────
+    FIREBASE_CONFIG: {
+        apiKey: "AIzaSyCwLPRxVdcJMtlwaNowkjuz_35CTZC4Jbw",
+        authDomain: "yamuna-pharmacy.firebaseapp.com",
+        projectId: "yamuna-pharmacy",
+        storageBucket: "yamuna-pharmacy.firebasestorage.app",
+        messagingSenderId: "548850300650",
+        appId: "1:548850300650:web:808774bdafba31cb8a0993"
+    },
 
     CACHE: {
         medicines: 'pharma_medicines',
@@ -15,23 +23,14 @@ const DB = {
         settings: 'pharma_settings',
     },
 
-    getFirebaseConfig() {
-        try { return JSON.parse(localStorage.getItem(this.FIREBASE_KEY)); } catch { return null; }
-    },
-
-    getFirebaseConfigString() {
-        return localStorage.getItem(this.FIREBASE_KEY) || '';
-    },
-
     isConfigured() {
-        return !!this.getFirebaseConfig();
+        return true; // Always configured since config is hardcoded
     },
 
     initFirebase() {
-        const config = this.getFirebaseConfig();
-        if (config && window.firebase && !firebase.apps.length) {
+        if (window.firebase && !firebase.apps.length) {
             try {
-                firebase.initializeApp(config);
+                firebase.initializeApp(this.FIREBASE_CONFIG);
                 firebase.firestore().enablePersistence().catch(e => console.warn('Firestore offline persistence error:', e));
                 this.db = firebase.firestore();
             } catch (e) {
@@ -103,7 +102,7 @@ const DB = {
     async addMedicine(data) {
         const id = Date.now().toString();
         const med = { ...data, id, createdAt: new Date().toISOString() };
-        
+
         const list = this._cacheGet(this.CACHE.medicines);
         list.push(med);
         this._cacheSet(this.CACHE.medicines, list);
@@ -112,7 +111,7 @@ const DB = {
             const dataToSave = { ...med };
             delete dataToSave.id;
             const docRef = await this.db.collection('medicines').add(dataToSave);
-            
+
             // Update cache with real Firebase ID
             const updated = this._cacheGet(this.CACHE.medicines).map(m =>
                 m.id === id ? { ...m, id: docRef.id } : m
@@ -167,7 +166,7 @@ const DB = {
                 });
                 this._cacheSet(this.CACHE.bills, remote);
                 return remote;
-            } catch(e) { console.warn('Firebase fallback', e.message); }
+            } catch (e) { console.warn('Firebase fallback', e.message); }
         }
         return cached;
     },
@@ -239,7 +238,7 @@ const DB = {
                 if (remote.lowStockThreshold) merged.lowStockThreshold = Number(remote.lowStockThreshold);
                 this._cacheSet(this.CACHE.settings, merged);
             }
-        } catch(e) {}
+        } catch (e) { }
     },
 
     // Push ALL local data to Firebase
