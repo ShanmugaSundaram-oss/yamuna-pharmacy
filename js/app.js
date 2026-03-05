@@ -8,10 +8,23 @@ const Auth = {
   SESSION_KEY: 'yamuna_auth',
 
   init() {
-    if (this.isLoggedIn()) {
-      this.showApp();
+    // If Firebase is configured, listen to Auth state
+    if (DB.isConfigured() && typeof firebase !== 'undefined') {
+      DB.initFirebase();
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+          this.showApp();
+        } else {
+          this.showLanding();
+        }
+      });
     } else {
-      this.showLanding();
+      // Fallback to local session
+      if (this.isLoggedIn()) {
+        this.showApp();
+      } else {
+        this.showLanding();
+      }
     }
   },
 
@@ -30,14 +43,42 @@ const Auth = {
     document.getElementById('login-screen').classList.add('active');
     document.getElementById('app-container').style.display = 'none';
     setTimeout(() => document.getElementById('login-username')?.focus(), 100);
+
+    // Toggle register button if Firebase is connected
+    const regBtn = document.getElementById('btn-register');
+    const uLabel = document.getElementById('label-username');
+    if (DB.isConfigured()) {
+      if (regBtn) regBtn.style.display = 'block';
+      if (uLabel) uLabel.textContent = 'Email Address';
+      document.getElementById('login-username').type = 'email';
+    } else {
+      if (regBtn) regBtn.style.display = 'none';
+      if (uLabel) uLabel.textContent = 'Username';
+      document.getElementById('login-username').type = 'text';
+    }
   },
 
-  handleLogin(e) {
+  async handleLogin(e) {
     e.preventDefault();
     const u = document.getElementById('login-username').value.trim();
     const p = document.getElementById('login-password').value;
     const err = document.getElementById('login-error');
+    if (err) err.style.display = 'none';
 
+    if (DB.isConfigured()) {
+      try {
+        await firebase.auth().signInWithEmailAndPassword(u, p);
+        // onAuthStateChanged will trigger showApp
+      } catch (error) {
+        if (err) {
+          err.textContent = error.message;
+          err.style.display = 'block';
+        }
+      }
+      return;
+    }
+
+    // Local fallback
     if (u === this.CREDENTIALS.username && p === this.CREDENTIALS.password) {
       sessionStorage.setItem(this.SESSION_KEY, 'true');
       if (err) err.style.display = 'none';
@@ -45,6 +86,31 @@ const Auth = {
     } else {
       if (err) {
         err.textContent = 'Invalid username or password. Please try again.';
+        err.style.display = 'block';
+      }
+    }
+  },
+
+  async handleRegister() {
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    if (err) err.style.display = 'none';
+
+    if (!u || !p) {
+      if (err) {
+        err.textContent = 'Please enter an email and password to register.';
+        err.style.display = 'block';
+      }
+      return;
+    }
+
+    try {
+      await firebase.auth().createUserWithEmailAndPassword(u, p);
+      // onAuthStateChanged will trigger showApp
+    } catch (error) {
+      if (err) {
+        err.textContent = error.message;
         err.style.display = 'block';
       }
     }
@@ -58,8 +124,15 @@ const Auth = {
   },
 
   logout() {
-    sessionStorage.removeItem(this.SESSION_KEY);
-    this.showLanding();
+    if (DB.isConfigured() && typeof firebase !== 'undefined') {
+      firebase.auth().signOut().then(() => {
+        sessionStorage.removeItem(this.SESSION_KEY);
+        this.showLanding();
+      });
+    } else {
+      sessionStorage.removeItem(this.SESSION_KEY);
+      this.showLanding();
+    }
   },
 };
 
@@ -73,13 +146,16 @@ const App = {
     this.navigate('dashboard');
     this.updateNavBadges();
     if (DB.isConfigured()) {
-      this._syncFromSheets();
+      this._syncFromFirebase();
     }
   },
 
-  async _syncFromSheets() {
+  async _syncFromFirebase() {
     try {
-      await DB.loadSettingsFromSheets();
+      if (DB.isConfigured() && typeof firebase !== 'undefined' && firebase.apps.length === 0) {
+        DB.initFirebase();
+      }
+      await DB.loadSettingsFromFirebase();
       await DB.getMedicines();
       await DB.getBills();
       this.navigate(this.currentPage);
@@ -257,7 +333,7 @@ const App = {
 
   renderSettings() {
     const s = DB.getSettings();
-    const sheetsUrl = DB.getScriptUrl();
+    const configStr = DB.getFirebaseConfigString();
     const isConnected = DB.isConfigured();
     document.getElementById('main-content').innerHTML = `
       <div class="page-header">
@@ -271,24 +347,24 @@ const App = {
         <div class="card-header">
           <h3 class="card-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            Google Sheets Database
+            Firebase Cloud Database
           </h3>
           <span class="badge ${isConnected ? 'badge-success' : 'badge-warning'}">${isConnected ? '✓ Connected' : 'Not Connected'}</span>
         </div>
         <div class="card-body">
-          ${!isConnected ? `<div class="sheets-setup-banner"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Paste your Apps Script Web App URL below to sync data to Google Sheets</span></div>` : ''}
+          ${!isConnected ? `<div class="sheets-setup-banner" style="background:var(--accent-dim);color:var(--accent);padding:10px;border-radius:6px;margin-bottom:12px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-4px;margin-right:6px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Paste your Firebase Configuration JSON below to enable real-time cloud sync across all your devices.</span></div>` : ''}
           <div class="form-group" style="margin-top:${isConnected ? '0' : '12px'}">
-            <label class="form-label">Apps Script Web App URL</label>
-            <input type="url" id="s-sheets-url" class="form-control" value="${Utils.escHtml(sheetsUrl)}" placeholder="https://script.google.com/macros/s/...">
-            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Get this URL from your Google Sheet → Extensions → Apps Script → Deploy</div>
+            <label class="form-label">Firebase Config JSON Object</label>
+            <textarea id="s-firebase-config" class="form-control" rows="5" placeholder='{\n  "apiKey": "...",\n  "authDomain": "...",\n  "projectId": "...",\n... }'>${Utils.escHtml(configStr)}</textarea>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Copy this from your Firebase Project Settings.</div>
           </div>
           <div style="display:flex;gap:10px;margin-top:12px">
-            <button class="btn btn-primary" onclick="App.saveSheetUrl()">Save & Connect</button>
-            ${isConnected ? `<button class="btn btn-outline" onclick="App.testSheetConnection()">Test Connection</button>` : ''}
+            <button class="btn btn-primary" onclick="App.saveFirebaseConfig()">Save & Connect</button>
+            ${isConnected ? `<button class="btn btn-outline" onclick="App.testFirebaseConnection()">Test Connection</button>` : ''}
             ${isConnected ? `<button class="btn btn-outline" onclick="App.syncNow()">Sync Now</button>` : ''}
-            ${isConnected ? `<button class="btn btn-outline" onclick="App.pushToSheets()" style="color:var(--accent);border-color:var(--accent)">Upload All to Sheets</button>` : ''}
+            ${isConnected ? `<button class="btn btn-outline" onclick="App.pushToCloud()" style="color:var(--accent);border-color:var(--accent)">Upload All Local Data to Cloud</button>` : ''}
           </div>
-          ${isConnected ? `<div style="margin-top:12px;padding:10px 14px;background:var(--success-dim);border-radius:var(--radius);font-size:13px;color:var(--success)">✓ All data syncing to your Google Sheet automatically.</div>` : ''}
+          ${isConnected ? `<div style="margin-top:12px;padding:10px 14px;background:var(--success-dim);border-radius:var(--radius);font-size:13px;color:var(--success)">✓ All data syncing to Firebase automatically.</div>` : ''}
         </div>
       </div>
 
@@ -325,7 +401,7 @@ const App = {
               <div class="about-logo">💊</div>
               <h3>YAMUNA PHARMACY</h3>
               <p>Pharmacy Management System</p>
-              <p style="color:var(--text-muted);font-size:12px;margin-top:8px">Version 2.0.0 · ${isConnected ? 'Google Sheets sync enabled' : 'Local storage mode'}</p>
+              <p style="color:var(--text-muted);font-size:12px;margin-top:8px">Version 2.0.0 · ${isConnected ? 'Firebase Realtime sync enabled' : 'Local storage mode'}</p>
               <div class="about-stats">
                 <div><span>${DB.getMedicinesSync().length}</span><label>Medicines</label></div>
                 <div><span>${DB.getBillsSync().length}</span><label>Bills</label></div>
@@ -337,38 +413,57 @@ const App = {
     `;
   },
 
-  saveSheetUrl() {
-    const url = document.getElementById('s-sheets-url')?.value?.trim();
-    if (url && !url.startsWith('https://script.google.com')) {
-      Utils.toast('Please enter a valid Apps Script URL!', 'error');
+  saveFirebaseConfig() {
+    const rawVal = document.getElementById('s-firebase-config')?.value?.trim();
+    if (!rawVal) {
+      localStorage.removeItem(DB.FIREBASE_KEY);
+      Utils.toast('Firebase disconnected.', 'info');
+      this.renderSettings();
       return;
     }
-    localStorage.setItem(DB.CONFIG_KEY, url || '');
-    Utils.toast(url ? 'Google Sheets connected! Syncing...' : 'Google Sheets disconnected.', url ? 'success' : 'info');
-    if (url) this._syncFromSheets();
-    this.renderSettings();
+    try {
+      // Basic validation that it's a JSON object with apiKey
+      const config = JSON.parse(rawVal);
+      if (!config.apiKey || !config.projectId) throw new Error('Missing apiKey or projectId');
+
+      localStorage.setItem(DB.FIREBASE_KEY, JSON.stringify(config));
+      Utils.toast('Firebase connected successfully! Syncing...', 'success');
+      DB.initFirebase();
+      this._syncFromFirebase();
+      this.renderSettings();
+      setTimeout(() => {
+        Utils.toast('Please log in again with Firebase.', 'info');
+        Auth.logout();
+      }, 1500);
+    } catch (e) {
+      Utils.toast('Invalid Firebase config JSON. Please copy the exact object.', 'error');
+    }
   },
 
-  async testSheetConnection() {
+  async testFirebaseConnection() {
     Utils.toast('Testing connection...', 'info');
-    const meds = await DB._get('getMedicines');
-    if (meds !== null) {
-      Utils.toast(`✓ Connected! Found ${meds.length} medicines in sheet.`, 'success');
-    } else {
-      Utils.toast('Connection failed. Check your URL and try again.', 'error');
+    if (!DB.isConfigured() || !DB.db) {
+      Utils.toast('Not configured.', 'error');
+      return;
+    }
+    try {
+      await DB.db.collection('medicines').limit(1).get();
+      Utils.toast('✓ Connected to Firebase Firestore!', 'success');
+    } catch (e) {
+      Utils.toast('Connection failed. Check permissions and config.', 'error');
     }
   },
 
   async syncNow() {
-    Utils.toast('Syncing from Google Sheets...', 'info');
-    await this._syncFromSheets();
+    Utils.toast('Syncing from Firebase...', 'info');
+    await this._syncFromFirebase();
     Utils.toast('Sync complete!', 'success');
   },
 
-  async pushToSheets() {
-    if (!Utils.confirm('This will upload all local data to your Google Sheet. Continue?')) return;
+  async pushToCloud() {
+    if (!Utils.confirm('This will upload all local data to your Firebase Cloud Database. Continue?')) return;
     Utils.toast('Uploading...', 'info');
-    const result = await DB.pushAllToSheets();
+    const result = await DB.pushAllToCloud();
     if (result.ok) {
       Utils.toast(`✓ Uploaded ${result.medCount} medicines and ${result.billCount} bills!`, 'success');
     } else {

@@ -89,13 +89,14 @@
       </div>
       <form id="login-form" onsubmit="Auth.handleLogin(event)">
         <div class="login-field">
-          <label for="login-username">Username</label>
+          <label id="label-username" for="login-username">Username</label>
           <div class="login-input-wrap">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            <input type="text" id="login-username" placeholder="Enter username" autocomplete="username" required>
+            <input type="text" id="login-username" placeholder="Enter username or email" autocomplete="username"
+              required>
           </div>
         </div>
         <div class="login-field">
@@ -118,6 +119,7 @@
           </svg>
           Sign In
         </button>
+
       </form>
     </div>
   </div>
@@ -219,6 +221,11 @@
         Loading...</div>
     </main>
   </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <!-- Scripts -->
   <script src="js/db.js"></script>
